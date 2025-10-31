@@ -25,7 +25,7 @@ while true; do
             echo "Container: $CONTAINER_ID, File number: $COUNTER" > "$directory/$filename"
             echo "$(date): Created $filename"
      fi
-     flock -u 9
+     flock -u 200
      exec 200>&-
      if [ -n "$filename" ] && [ -f "$directory/$filename" ]; then
         sleep 1
