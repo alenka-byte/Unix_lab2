@@ -12,7 +12,8 @@ COUNTER=1
 echo "Container $CONTAINER_ID started"
 
 while true; do
-    (
+          
+          exec 200>"$lock_file"
           flock -x 200
           filename=""
           for i in {001..999}; do
@@ -25,7 +26,7 @@ while true; do
                 echo "Container: $CONTAINER_ID, File number: $COUNTER" > "$directory/$filename"
                 echo "$(date): Created $filename"
           fi
-     ) 200>"$lock_file"
+          exec 200>&-
      if [ -n "$filename" ] && [ -f "$directory/$filename" ]; then
         sleep 1
         rm "$directory/$filename"
