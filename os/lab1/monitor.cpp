@@ -61,4 +61,5 @@ int main() {
     cout << "Работа завершена." << endl;
 
     return 0;
+
 }
