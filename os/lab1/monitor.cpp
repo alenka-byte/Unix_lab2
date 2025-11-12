@@ -13,23 +13,23 @@ private:
     int ready = 0;
 
 public:
-    // Метод поставщика
     void produce() {
         for (int i = 1; i <= 10; ++i) {
-            // Задержка 1 секунда
             this_thread::sleep_for(chrono::seconds(1));
+            unique_lock<mutex> lock(mtx);
+
             if (ready == 1) {
-                unique_lock<mutex> lock(mtx);
-                continue; // Пропускаем если событие еще не обработано
+                lock.unlock();
+                continue; 
             }
+
             ready = 1;
             cout << "Поставщик: отправил событие с данными: " << i << endl;
             cv.notify_one();
-            unique_lock<mutex> lock(mtx);
+            lock.unlock();
         }
     }
 
-    // Метод потребителя
     void consume() {
         for (int i = 1; i <= 10; ++i) {
             unique_lock<mutex> lock(mtx);
