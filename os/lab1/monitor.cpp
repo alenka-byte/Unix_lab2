@@ -25,8 +25,7 @@ public:
 
             ready = 1;
             cout << "Поставщик: отправил событие с данными: " << i << endl;
-
-            // Будим потребителя
+            lock_guard<mutex> lock(mtx);
             cv.notify_one();
         }
     }
@@ -39,9 +38,9 @@ public:
                 cv.wait(lock);
                 cout << "Потребитель: проснулся" << endl;
             }
-
             ready = 0;
             cout << "Потребитель: получил событие: " << i << endl;
+            lock.unlock();
         }
     }
 };
@@ -61,4 +60,5 @@ int main() {
     return 0;
 
 }
+
 
