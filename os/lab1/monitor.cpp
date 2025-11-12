@@ -18,10 +18,8 @@ public:
         for (int i = 1; i <= 10; ++i) {
             // Задержка 1 секунда
             this_thread::sleep_for(chrono::seconds(1));
-
-            lock_guard<mutex> lock(mtx);
-
             if (ready == 1) {
+                lock_guard<mutex> lock(mtx);
                 continue; // Пропускаем если событие еще не обработано
             }
 
@@ -63,3 +61,4 @@ int main() {
     return 0;
 
 }
+
