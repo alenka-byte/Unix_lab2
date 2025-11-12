@@ -1,4 +1,4 @@
-﻿#include <iostream>
+#include <iostream>
 #include <thread>
 #include <mutex>
 #include <condition_variable>
@@ -19,14 +19,13 @@ public:
             // Задержка 1 секунда
             this_thread::sleep_for(chrono::seconds(1));
             if (ready == 1) {
-                lock_guard<mutex> lock(mtx);
+                unique_lock<mutex> lock(mtx);
                 continue; // Пропускаем если событие еще не обработано
             }
-
             ready = 1;
             cout << "Поставщик: отправил событие с данными: " << i << endl;
-            lock_guard<mutex> lock(mtx);
             cv.notify_one();
+            unique_lock<mutex> lock(mtx);
         }
     }
 
@@ -58,7 +57,4 @@ int main() {
     cout << "Работа завершена." << endl;
 
     return 0;
-
 }
-
-
