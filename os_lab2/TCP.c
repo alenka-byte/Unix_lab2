@@ -94,7 +94,7 @@ int main() {
                 // Проверка сигнала после возврата из pselect
                 if (wasSigHup) {
                     printf("Received SIGHUP signal\n");
-                    wasSigHup = 0;  // Безопасно - мы в основном потоке
+                    wasSigHup = 0;  
                 }
                 continue;
             } else {
