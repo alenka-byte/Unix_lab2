@@ -52,15 +52,29 @@ int main() {
     printf("Server listening on port %d\n", PORT);
 
     // Настройка обработчика сигналов
-    sigaction(SIGHUP,NULL, &sa);
+    memset(&sa, 0, sizeof(sa));  
     sa.sa_handler = sigHupHandler;
-    sa.sa_flags |= SA_RESTART;
-    sigaction(SIGHUP, &sa, NULL);
-
-    // Блокировка SIGHUP для безопасной проверки в pselect
+    sa.sa_flags = SA_RESTART;   
+    sigemptyset(&sa.sa_mask); 
+    
+    if (sigaction(SIGHUP, &sa, NULL) == -1) {
+        perror("sigaction");
+        close(server_fd);
+        exit(EXIT_FAILURE);
+    }
+    
     sigemptyset(&blockedMask);
     sigaddset(&blockedMask, SIGHUP);
-    sigprocmask(SIG_BLOCK,blockedMask, &origMask);
+    
+    // Блокируем SIGHUP и сохраняем текущую маску
+    if (sigprocmask(SIG_BLOCK, &blockedMask, &origMask) == -1) {
+        perror("sigprocmask");
+        close(server_fd);
+        exit(EXIT_FAILURE);
+    }
+
+    printf("Server PID: %d\n", getpid());
+    printf("Send SIGHUP with: kill -HUP %d\n", getpid());
 
     while (1) {
         FD_ZERO(&fds);
@@ -77,7 +91,7 @@ int main() {
             }
         }
 
-        // Безопасный вызов pselect с разблокировкой SIGHUP
+        // Безопасный вызов pselect с ПРАВИЛЬНОЙ маской сигналов
         if (pselect(max_fd + 1, &fds, NULL, NULL, NULL, &origMask) == -1) {
             if (errno == EINTR) {
                 if (wasSigHup) {
@@ -91,6 +105,12 @@ int main() {
             }
         }
 
+        // Проверка флага сигнала даже если pselect не вернул EINTR
+        if (wasSigHup) {
+            printf("Received SIGHUP signal\n");
+            wasSigHup = 0;
+        }
+
         // Обработка нового подключения на основном сокете
         if (FD_ISSET(server_fd, &fds)) {
             if ((new_socket = accept(server_fd, (struct sockaddr *)&address, 
@@ -100,7 +120,8 @@ int main() {
             }
 
             printf("New connection accepted\n");
-            // Закрытие всех существующих соединений 
+
+            // Закрытие всех существующих соединений
             for (int i = 0; i < MAX_CLIENTS; i++) {
                 if (client_sockets[i] > 0) {
                     close(client_sockets[i]);
@@ -108,6 +129,7 @@ int main() {
                     printf("Closed existing connection\n");
                 }
             }
+
             // Добавление нового клиента
             for (int i = 0; i < MAX_CLIENTS; i++) {
                 if (client_sockets[i] == 0) {
@@ -125,10 +147,15 @@ int main() {
                 int valread = read(fd, buffer, sizeof(buffer));
                 if (valread > 0) {
                     printf("Received %d bytes from client\n", valread);
-                } else {
+                } else if (valread == 0) {
+                    // Соединение закрыто клиентом
                     close(fd);
                     client_sockets[i] = 0;
                     printf("Client disconnected\n");
+                } else {
+                    perror("read error");
+                    close(fd);
+                    client_sockets[i] = 0;
                 }
             }
         }
