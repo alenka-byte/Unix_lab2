@@ -20,12 +20,11 @@ void sigHupHandler(int sig) {
 int main() {
     int server_fd, new_socket, max_fd;
     int client_sockets[MAX_CLIENTS] = {0};
-    fd_set read_fds;
+    fd_set fds;
     struct sigaction sa;
-    sigset_t blocked_mask, empty_mask;
+    sigset_t origSigMask;
     struct sockaddr_in address;
     int addrlen = sizeof(address);
-    int active_client_count = 0;
 
     // Создание сокета
     if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
@@ -62,24 +61,22 @@ int main() {
     }
 
     // Блокировка SIGHUP для безопасной проверки в pselect
-    sigemptyset(&blocked_mask);
-    sigaddset(&blocked_mask, SIGHUP);
-    if (sigprocmask(SIG_BLOCK, &blocked_mask, NULL) == -1) {
+    sigemptyset(&origSigMask);
+    sigaddset(&origSigMask, SIGHUP);
+    if (sigprocmask(SIG_BLOCK, &origSigMask, NULL) == -1) {
         perror("sigprocmask");
         exit(EXIT_FAILURE);
     }
 
-    sigemptyset(&empty_mask);
-
     while (1) {
-        FD_ZERO(&read_fds);
-        FD_SET(server_fd, &read_fds);
+        FD_ZERO(&fds);
+        FD_SET(server_fd, &fds);
         max_fd = server_fd;
         
         // Добавление клиентских сокетов в набор
         for (int i = 0; i < MAX_CLIENTS; i++) {
             if (client_sockets[i] > 0) {
-                FD_SET(client_sockets[i], &read_fds);
+                FD_SET(client_sockets[i], &fds);
                 if (client_sockets[i] > max_fd) {
                     max_fd = client_sockets[i];
                 }
@@ -87,14 +84,11 @@ int main() {
         }
 
         // Безопасный вызов pselect с разблокировкой SIGHUP
-        int activity = pselect(max_fd + 1, &read_fds, NULL, NULL, NULL, &empty_mask);
-        
-        if (activity < 0) {
+        if (pselect(max_fd + 1, &fds, NULL, NULL, NULL, &origSigMask) == -1) {
             if (errno == EINTR) {
-                // Проверка сигнала после возврата из pselect
                 if (wasSigHup) {
                     printf("Received SIGHUP signal\n");
-                    wasSigHup = 0;  
+                    wasSigHup = 0;
                 }
                 continue;
             } else {
@@ -103,8 +97,8 @@ int main() {
             }
         }
 
-        // Обработка нового подключения
-        if (FD_ISSET(server_fd, &read_fds)) {
+        // Обработка нового подключения на основном сокете
+        if (FD_ISSET(server_fd, &fds)) {
             if ((new_socket = accept(server_fd, (struct sockaddr *)&address, 
                                    (socklen_t*)&addrlen)) < 0) {
                 perror("accept");
@@ -113,25 +107,25 @@ int main() {
 
             printf("New connection accepted\n");
 
-            // Закрываем предыдущие соединения, оставляя только новое
+            // Добавление нового клиента
             for (int i = 0; i < MAX_CLIENTS; i++) {
-                if (client_sockets[i] > 0) {
-                    close(client_sockets[i]);
-                    client_sockets[i] = 0;
+                if (client_sockets[i] == 0) {
+                    client_sockets[i] = new_socket;
+                    break;
                 }
             }
-            client_sockets[0] = new_socket;
         }
 
-        // Обработка данных от клиента
+        // Обработка данных от установленных соединений
         for (int i = 0; i < MAX_CLIENTS; i++) {
-            if (client_sockets[i] > 0 && FD_ISSET(client_sockets[i], &read_fds)) {
+            int fd = client_sockets[i];
+            if (fd > 0 && FD_ISSET(fd, &fds)) {
                 char buffer[1024] = {0};
-                int valread = read(client_sockets[i], buffer, sizeof(buffer));
+                int valread = read(fd, buffer, sizeof(buffer));
                 if (valread > 0) {
                     printf("Received %d bytes from client\n", valread);
                 } else {
-                    close(client_sockets[i]);
+                    close(fd);
                     client_sockets[i] = 0;
                     printf("Client disconnected\n");
                 }
