@@ -20,7 +20,8 @@ void sigHupHandler(int sig) {
 }
 
 int main() {
-    int serverSocket, clientSocket;
+    int serverSocket;
+	int clientSocket = -1;
     // Создание сокета
     serverSocket = socket(AF_INET, SOCK_STREAM, 0);
     if (serverSocket < 0) {
