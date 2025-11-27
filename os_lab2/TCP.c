@@ -10,7 +10,7 @@
 #include <arpa/inet.h>
 #include <errno.h>
 
-#define PORT 12345
+#define PORT 1255
 #define MAX_CLIENTS 1
 
 volatile sig_atomic_t wasSigHup = 0;
@@ -36,18 +36,18 @@ int main() {
 
     // Привязка сокета к адресу
     if (bind(serverSocket, (struct sockaddr *)&serverAddr, sizeof(serverAddr)) < 0) {
-        perror("ошибка bind");
+        perror("Ошибка bind");
         close(serverSocket);
         exit(EXIT_FAILURE);
     }
 
     // Прослушивание сокета
     if (listen(serverSocket, MAX_CLIENTS) < 0) {
-        perror("ошибка listen");
+        perror("Ошибка listen");
         close(serverSocket);
         exit(EXIT_FAILURE);
     }
-    printf("сервер запущен на порту 12345. Ожидание соединений\n");
+    printf("Сервер запущен. Ожидание соединений\n");
 
     // Регистрация обработчика сигнала
     struct sigaction sa;
@@ -110,7 +110,7 @@ int main() {
                 if (bytesRead > 0) {
                     printf("получил %zd байтов\n", bytesRead);
                 } else if (bytesRead == 0) {
-                    printf("Client disconnected\n");
+                    printf("Соединение закрыто.\n");
                     close(clientSocket);
                     clientSocket = -1;
                 } else {
