@@ -66,7 +66,7 @@ int main() {
     // Основной цикл приложения
     fd_set fds;
     int maxFd=serverSocket;
-    while (true) {
+    while (1) {
         FD_ZERO(&fds);
         FD_SET(serverSocket, &fds);
         maxFd = serverSocket;
