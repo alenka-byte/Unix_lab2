@@ -22,7 +22,7 @@ int main() {
     int client_sockets[MAX_CLIENTS] = {0};
     fd_set fds;
     struct sigaction sa;
-    sigset_t origSigMask;
+    sigset_t blockedMask, origMask;
     struct sockaddr_in address;
     int addrlen = sizeof(address);
 
@@ -52,21 +52,15 @@ int main() {
     printf("Server listening on port %d\n", PORT);
 
     // Настройка обработчика сигналов
+    sigaction(SIGHUP,NULL, &sa);
     sa.sa_handler = sigHupHandler;
-    sigemptyset(&sa.sa_mask);
-    sa.sa_flags = SA_RESTART;
-    if (sigaction(SIGHUP, &sa, NULL) == -1) {
-        perror("sigaction");
-        exit(EXIT_FAILURE);
-    }
+    sa.sa_flags |= SA_RESTART;
+    sigaction(SIGHUP, &sa, NULL);
 
     // Блокировка SIGHUP для безопасной проверки в pselect
-    sigemptyset(&origSigMask);
-    sigaddset(&origSigMask, SIGHUP);
-    if (sigprocmask(SIG_BLOCK, &origSigMask, NULL) == -1) {
-        perror("sigprocmask");
-        exit(EXIT_FAILURE);
-    }
+    sigemptyset(&blockedMask);
+    sigaddset(&blockedMask, SIGHUP);
+    sigprocmask(SIG_BLOCK,blockedMask, &origMask);
 
     while (1) {
         FD_ZERO(&fds);
@@ -84,7 +78,7 @@ int main() {
         }
 
         // Безопасный вызов pselect с разблокировкой SIGHUP
-        if (pselect(max_fd + 1, &fds, NULL, NULL, NULL, &origSigMask) == -1) {
+        if (pselect(max_fd + 1, &fds, NULL, NULL, NULL, &origMask) == -1) {
             if (errno == EINTR) {
                 if (wasSigHup) {
                     printf("Received SIGHUP signal\n");
@@ -106,7 +100,14 @@ int main() {
             }
 
             printf("New connection accepted\n");
-
+            // Закрытие всех существующих соединений 
+            for (int i = 0; i < MAX_CLIENTS; i++) {
+                if (client_sockets[i] > 0) {
+                    close(client_sockets[i]);
+                    client_sockets[i] = 0;
+                    printf("Closed existing connection\n");
+                }
+            }
             // Добавление нового клиента
             for (int i = 0; i < MAX_CLIENTS; i++) {
                 if (client_sockets[i] == 0) {
