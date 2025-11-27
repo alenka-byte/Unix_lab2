@@ -91,7 +91,7 @@ int main() {
             }
         }
 
-        // Безопасный вызов pselect с ПРАВИЛЬНОЙ маской сигналов
+        // Безопасный вызов pselect 
         if (pselect(max_fd + 1, &fds, NULL, NULL, NULL, &origMask) == -1) {
             if (errno == EINTR) {
                 if (wasSigHup) {
@@ -105,7 +105,7 @@ int main() {
             }
         }
 
-        // Проверка флага сигнала даже если pselect не вернул EINTR
+        // Проверка флага сигнала 
         if (wasSigHup) {
             printf("Received SIGHUP signal\n");
             wasSigHup = 0;
