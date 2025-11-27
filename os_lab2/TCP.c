@@ -52,30 +52,16 @@ int main() {
     printf("Server listening on port %d\n", PORT);
 
     // Настройка обработчика сигналов
-    memset(&sa, 0, sizeof(sa));  
+    sigaction(SIGHUP, NULL, &sa);
     sa.sa_handler = sigHupHandler;
-    sa.sa_flags = SA_RESTART;   
-    sigemptyset(&sa.sa_mask); 
-    
-    if (sigaction(SIGHUP, &sa, NULL) == -1) {
-        perror("sigaction");
-        close(server_fd);
-        exit(EXIT_FAILURE);
-    }
-    
+    sa.sa_flags |= SA_RESTART;
+    sigaction(SIGHUP, &sa, NULL);
+
+    // Блокировка сигнала
     sigemptyset(&blockedMask);
     sigaddset(&blockedMask, SIGHUP);
+    sigprocmask(SIG_BLOCK, &blockedMask, &origMask);
     
-    // Блокируем SIGHUP и сохраняем текущую маску
-    if (sigprocmask(SIG_BLOCK, &blockedMask, &origMask) == -1) {
-        perror("sigprocmask");
-        close(server_fd);
-        exit(EXIT_FAILURE);
-    }
-
-    printf("Server PID: %d\n", getpid());
-    printf("Send SIGHUP with: kill -HUP %d\n", getpid());
-
     while (1) {
         FD_ZERO(&fds);
         FD_SET(server_fd, &fds);
