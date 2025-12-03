@@ -22,7 +22,7 @@ static ssize_t procfile_read( struct file *file_pointer, char __user *buffer, si
     int len;
     int time = calculate_time();
     if (time > 0) 
-         len = snprintf(result, sizeof(result), "Cinderella has %d  seconds until midnight\n","It's %d hours, %d minutes, %d seconds\n", time, time / 3600, (time % 3600) / 60, time % 60);
+         len = snprintf(result, sizeof(result), "Cinderella has %d  seconds until midnight\n" "It's %d hours, %d minutes, %d seconds\n", time, time / 3600, (time % 3600) / 60, time % 60);
     else
         len = snprintf(result, sizeof(result), "It's midnight!");
 
